@@ -1,0 +1,591 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:password@localhost:5432/pharmacy"
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  first_name        String
+  last_name         String?
+  username          String   @unique
+  phone_number      String?
+  email             String?
+  password          String
+  can_give_discount Boolean  @default(false)
+  is_active         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  maximum_discount  Float    @default(0.00)
+  role              Int      @default(2) ///1: admin, 2: operator
+
+  permissions      Permission[]
+  pos_sales        pos_sale[]
+  purchase_returns purchase_return[]
+
+  @@map("users")
+}
+
+model Permission {
+  id    Int    @id @default(autoincrement())
+  title String @unique
+  value String @unique
+
+  users User[]
+
+  @@map("permissions")
+}
+
+model Brand {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  products product[]
+
+  @@map("brands")
+}
+
+model Category {
+  id                  Int    @id @default(autoincrement())
+  name                String @unique
+  floor_id            Int
+  vat_in_percent      Float  @default(0.00)
+  discount_in_percent Float  @default(0.00)
+
+  products product[]
+
+  @@map("categories")
+}
+
+model Color {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  products product[]
+
+  @@map("colors")
+}
+
+model Supplier {
+  id            Int     @id @default(autoincrement())
+  first_name    String?
+  last_name     String?
+  company_name  String
+  address       String?
+  phone_number  String?
+  email_address String?
+  is_vendor     Boolean @default(false)
+  discount      Decimal @default(0.00)
+  due           Float   @default(0)
+
+  pay_modes        payment_mode[]
+  products         product[]
+  purchase_orders  purchase_order[]
+  purchase_returns purchase_return[]
+  payments         supplier_payment[]
+  saleable_product saleable_product[]
+
+  @@map("suppliers")
+}
+
+model payment_mode {
+  id     Int    @id @default(autoincrement())
+  method String
+
+  suppliers Supplier[]
+
+  @@map("payment_modes")
+}
+
+model product {
+  id             Int     @id @default(autoincrement())
+  category_id    Int
+  name           String
+  zone_id        Int? // flore id
+  vat_in_percent Float   @default(0)
+  discount       Float   @default(0)
+  system_barcode String  @unique
+  is_ready       Boolean @default(false)
+
+  style_size             String?
+  color_id               Int?
+  product_barcode        String?
+  minimum_order_quantity Int?
+  maximum_order_quantity Int?
+  re_order_quantity      Int?
+  whole_sale_price       Float?
+  product_expiry_date    DateTime?
+  batch_expiry_date      DateTime?
+  cost_price             Float     @default(0)
+  MRP_price              Float     @default(0)
+  stock                  Float     @default(0)
+  brand_id               Int?
+  supplier_id            Int?
+  is_service             Boolean   @default(false)
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  deleted_at             DateTime?
+  //   flat_promotion_id Int?
+  backup_product_barcode String?
+  batch_no               String?
+  slow_fast_quantity     Float     @default(0)
+  rate                   Float     @default(0)
+
+  category Category  @relation(fields: [category_id], references: [id])
+  brand    Brand?    @relation(fields: [brand_id], references: [id])
+  supplier Supplier? @relation(fields: [supplier_id], references: [id])
+  //   flat_promotion flat_promotion? @relation(fields: [flat_promotion_id], references: [id])
+  color    Color?    @relation(fields: [color_id], references: [id])
+
+  purchase_orders  product_on_purchase_order[]
+  pos_sales        product_on_pos_sale[]
+  damage_and_losts damage_and_lost[]
+  pos_sale_returns pos_sale_return[]
+  purchase_returns purchase_return[]
+  //   promotions product_on_promotion[]
+  buy_x_get_x      product_on_buy_x_get_x[]
+  combo_promotions product_on_combo_promotion[]
+  flat_promotions  product_on_flat_promotion[]
+  exchanges        sale_exchange[]
+  stock_ledger     stock_ledger[]
+  price_changes    price_change[]
+  stock_changes    stock_change[]
+  saleable_product saleable_product[]
+
+  @@map("products")
+}
+
+model purchase_order {
+  id              Int       @id @default(autoincrement())
+  supplier_id     Int
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  is_received     Boolean   @default(false)
+  received_at     DateTime?
+  additional_cost Float     @default(0)
+  discount        Float     @default(0)
+
+  supplier Supplier                    @relation(fields: [supplier_id], references: [id])
+  products product_on_purchase_order[]
+
+  @@map("purchase_orders")
+}
+
+model purchase_return {
+  id          Int      @id @default(autoincrement())
+  supplier_id Int
+  reason      String
+  product_id  Int
+  quantity    Float
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  user_id     Int
+  cost_price  Float    @default(0)
+  mrp_price   Float    @default(0)
+
+  user     User     @relation(fields: [user_id], references: [id])
+  supplier Supplier @relation(fields: [supplier_id], references: [id])
+  product  product  @relation(fields: [product_id], references: [id])
+
+  @@map("purchase_returns")
+}
+
+model product_on_purchase_order {
+  cost_price        Float
+  mrp_price         Float
+  quantity          Float?
+  received_quantity Float?
+  bonus_quantity    Float?
+  wholesale_price   Float?
+
+  product_id        Int
+  purchase_order_id Int
+
+  product        product        @relation(fields: [product_id], references: [id])
+  purchase_order purchase_order @relation(fields: [purchase_order_id], references: [id])
+
+  // @@map("product_on_purchase_order")
+  @@id([product_id, purchase_order_id])
+}
+
+model pos_sale {
+  id               String   @id 
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  sub_total        Float    @default(0)
+  discount_amount  Float    @default(0)
+  vat_amount       Float    @default(0)
+  total            Float    @default(0)
+  paid_amount      Float    @default(0)
+  return_amount    Float    @default(0)
+  total_cost_price Float    @default(0)
+  user_id          Int
+  customer_id      Int?
+  is_wholesale     Boolean  @default(false)
+
+  user     User      @relation(fields: [user_id], references: [id])
+  customer customer? @relation(fields: [customer_id], references: [id])
+
+  products           product_on_pos_sale[]
+  pos_payments       pos_payment[]
+  returns            pos_sale_return[]
+  exchanged_products sale_exchange[]       @relation(name: "origin_sale") // products that are exchnged in future transaction 
+  exchanging_product sale_exchange[] // products that are exchanging with current transaction
+
+  @@map("pos_sales")
+}
+
+model product_on_pos_sale {
+  id              Int     @id @default(autoincrement())
+  product_id      Int
+  pos_sale_id     String
+  product_price   Float
+  quantity        Float // TODO: remove this default zero
+  discount_amount Float
+  // sale amount is product mrp price - discount(applied on that product) + vat (applier on that product)
+  sale_amount     Float   @default(0) // default is because it was added later and db had data
+  cost_price      Float   @default(0)
+  mrp_price       Float   @default(0)
+  offer_type      String?
+  offer_id        Int?
+
+  product  product  @relation(fields: [product_id], references: [id])
+  pos_sale pos_sale @relation(fields: [pos_sale_id], references: [id], onDelete: Cascade)
+
+  @@map("products_on_pos_sales")
+}
+
+model pos_payment {
+  id          Int     @id @default(autoincrement())
+  pos_sale_id String
+  method      Int /// 1 = Cash, 2 = Card, 3 = point/redeem, 4 = exchange, 5 = credit
+  via         String? // bank asia, bkash
+  amount      Float
+
+  pos_sale pos_sale @relation(fields: [pos_sale_id], references: [id], onDelete: Cascade)
+
+  @@map("pos_payments")
+}
+
+model sale_exchange {
+  id                 Int      @id @default(autoincrement())
+  origin_sale_id     String
+  product_id         Int
+  quantity           Float
+  exchanging_sale_id String
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  origin_sale     pos_sale @relation(fields: [origin_sale_id], references: [id], name: "origin_sale")
+  product         product  @relation(fields: [product_id], references: [id])
+  exchanging_sale pos_sale @relation(fields: [exchanging_sale_id], references: [id])
+
+  @@map("sale_exchanges")
+}
+
+model membership_type {
+  id       Int    @id @default(autoincrement())
+  name     String
+  discount Float
+
+  customers customer[]
+
+  @@map("membership_types")
+}
+
+model customer {
+  id                 Int                @id @default(autoincrement())
+  first_name         String
+  last_name          String?
+  phone_number       String
+  address            String?
+  email              String?
+  customer_id        String?            @unique // membership_card ID
+  membership_type_id Int?
+  point              Float              @default(0)
+  credit_limit       Int                @default(0)
+  credit_spend       Float              @default(0)
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  pos_sales          pos_sale[]
+  payments           customer_payment[]
+  membership_type    membership_type?   @relation(fields: [membership_type_id], references: [id])
+
+  @@map("customers")
+}
+
+model customer_payment {
+  id               Int      @id @default(autoincrement())
+  amount           Float
+  pay_method       Int      @default(1) /// 1=> cash, 2=> card, 3=> check
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  remaining_amount Float    @default(0)
+  customer_id      Int
+
+  customer customer @relation(fields: [customer_id], references: [id])
+
+  @@map("customer_payments")
+}
+
+model damage_and_lost {
+  id         Int      @id @default(autoincrement())
+  product_id Int
+  quantity   Float
+  status     Int /// 1: damage, 2: lost
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  reason     String   @default("")
+  cost       Float    @default(0)
+
+  product product @relation(fields: [product_id], references: [id])
+}
+
+model pos_sale_return {
+  id            Int      @id @default(autoincrement())
+  pos_sale_id   String
+  product_id    Int
+  return_amount Float
+  quantity      Int      @default(1)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  pos_sale pos_sale @relation(fields: [pos_sale_id], references: [id])
+  product  product  @relation(fields: [product_id], references: [id])
+
+  @@map("pos_sale_returns")
+}
+
+model promotion {
+  id                  Int       @id @default(autoincrement())
+  expiry_date         DateTime?
+  is_active           Boolean   @default(false)
+  type                Int /// 1: flat discount, 2: combo offer, 3: Buy one get one, 4: Buy one get two, 5: Buy one get three, 6: Buy one get four, 7: Buy one get five
+  discount_in_percent Float
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  products product_on_promotion[]
+
+  @@map("promotions")
+}
+
+model product_on_promotion {
+  id              Int   @id @default(autoincrement())
+  promotion_id    Int
+  product_id      Int
+  quantity        Int
+  disc_in_percent Float @default(0)
+  disc_in_amount  Float @default(0)
+
+  promotion promotion @relation(fields: [promotion_id], references: [id])
+  //   product product @relation(fields: [product_id], references: [id])
+}
+
+model flat_promotion {
+  id             Int       @id @default(autoincrement())
+  name           String
+  effective_date DateTime
+  expiry_date    DateTime
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  //   disc_in_percent Float
+  //   disc_in_amount Float
+
+  //   products product[]
+  products product_on_flat_promotion[]
+
+  @@map("flat_promotions")
+}
+
+model product_on_flat_promotion {
+  id                Int   @id @default(autoincrement())
+  product_id        Int
+  flat_promotion_id Int
+  quantity          Int
+  disc_in_percent   Float @default(0)
+  disc_in_amount    Float @default(0)
+
+  product        product        @relation(fields: [product_id], references: [id])
+  flat_promotion flat_promotion @relation(fields: [flat_promotion_id], references: [id])
+}
+
+model buy_x_get_x {
+  id             Int      @id @default(autoincrement())
+  name           String
+  effective_date DateTime
+  expiry_date    DateTime
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  products product_on_buy_x_get_x[]
+}
+
+model product_on_buy_x_get_x {
+  id             Int    @id @default(autoincrement())
+  buy_x_get_x_id Int
+  product_id     Int
+  type           Int /// 1: Buy, 2: Get
+  quantity       Int
+  group_id       String
+
+  buy_x_get_x buy_x_get_x @relation(fields: [buy_x_get_x_id], references: [id])
+  product     product     @relation(fields: [product_id], references: [id])
+}
+
+model combo_promotion {
+  id             Int       @id @default(autoincrement())
+  name           String
+  effective_date DateTime
+  expiry_date    DateTime
+  barcode        String
+  is_active      Boolean   @default(true)
+  price          Float     @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+
+  products product_on_combo_promotion[]
+
+  @@map("combo_promotions")
+}
+
+model product_on_combo_promotion {
+  combo_promotion_id Int
+  product_id         Int
+  quantity           Int
+
+  combo_promotion combo_promotion @relation(fields: [combo_promotion_id], references: [id])
+  product         product         @relation(fields: [product_id], references: [id])
+
+  @@id([combo_promotion_id, product_id])
+}
+
+model setting {
+  id                            Int      @id @default(autoincrement())
+  company_name                  String   @default("")
+  including_vat                 Boolean
+  company_address               String   @default("")
+  company_phone_number          String   @default("")
+  point_system                  Boolean  @default(false)
+  point_ratio                   Float    @default(0)
+  redeem_ratio                  Float    @default(0)
+  licence_key                   String[] @default([])
+  served_by_size                String   @default("12")
+  pos_recipt_company_name_size  String   @default("17")
+  pos_recipt_phone_number_size  String   @default("12")
+  vat_number                    String   @default("")
+  invoice_note                  String   @default("Contact within 24 hours in case of complaint which will be resolved as per our sales policy")
+  pos_recipt_note_size          String   @default("12")
+  show_point_balance_on_receipt Boolean  @default(true)
+  enable_account_module         Boolean  @default(false)
+  enable_credit_module          Boolean  @default(false)
+
+  @@map("settings")
+}
+
+model account {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  sub_accounts sub_account[]
+
+  @@map("accounts")
+}
+
+model voucher {
+  id Int @id @default(autoincrement())
+
+  payment_amount Float
+  payment_type   Int // 1 = cash, 2=card, 3=check
+  bank_name      String?
+  account_number String?
+  sub_account_id Int
+  payment_note   String?
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  sub_account sub_account @relation(fields: [sub_account_id], references: [id])
+
+  @@map("vouchers")
+}
+
+model supplier_payment {
+  id Int @id @default(autoincrement())
+
+  payment_amount Float
+  payment_type   Int // 1 = cash, 2=card, 3=check
+  bank_name      String?
+  account_number String?
+  supplier_id    Int
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  supplier Supplier @relation(fields: [supplier_id], references: [id])
+
+  @@map("supplier_payments")
+}
+
+model stock_ledger {
+  id              Int    @id @default(autoincrement())
+  stock_ledger_id String
+  previous_stock  Float
+  current_stock   Float
+  cost_price      Float
+  mrp_price       Float
+  product_id      Int
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  product product @relation(fields: [product_id], references: [id])
+
+  @@map("stock_ledgers")
+}
+
+model price_change {
+  id            Int      @id @default(autoincrement())
+  old_mrp_price Float
+  new_mrp_price Float
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  product_id Int
+
+  product product @relation(fields: [product_id], references: [id])
+
+  @@map("price_changes")
+}
+
+model stock_change {
+  id         Int      @id @default(autoincrement())
+  old_stock  Float
+  new_stock  Float
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  product_id Int
+
+  product product @relation(fields: [product_id], references: [id])
+
+  @@map("stock_changes")
+}
+
+model sub_account {
+  id           Int      @id @default(autoincrement())
+  name         String
+  balance_type Int /// 1, debit 2, credit
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  account_id Int
+
+  account account @relation(fields: [account_id], references: [id])
+
+  vouchers voucher[]
+
+  @@map("sub_accounts")
+}
+
+model saleable_product {
+  id                  Int      @id @default(autoincrement())
+  no_of_product       Float
+  no_of_bonus_product Float?
+  sale_barcode        String   @unique
+  sale_count          Float
+  product_id          Int
+  vendor_id           Int
+  expiry_date         DateTime
+
+  product product  @relation(fields: [product_id], references: [id])
+  vendor  Supplier @relation(fields: [vendor_id], references: [id])
+
+  @@map("saleable_products")
+}

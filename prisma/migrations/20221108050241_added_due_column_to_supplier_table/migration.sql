@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "suppliers" ADD COLUMN     "due" DOUBLE PRECISION NOT NULL DEFAULT 0;

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "product_on_purchase_order" ALTER COLUMN "quantity" SET DATA TYPE DOUBLE PRECISION,
+ALTER COLUMN "received_quantity" SET DATA TYPE DOUBLE PRECISION,
+ALTER COLUMN "bonus_quantity" SET DATA TYPE DOUBLE PRECISION;

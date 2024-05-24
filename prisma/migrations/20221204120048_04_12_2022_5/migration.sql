@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "stock_ledgers" ALTER COLUMN "previous_stock" SET DATA TYPE DOUBLE PRECISION,
+ALTER COLUMN "current_stock" SET DATA TYPE DOUBLE PRECISION;
