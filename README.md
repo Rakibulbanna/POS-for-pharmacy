@@ -1,1 +1,1 @@
-# POS-phermacy
+# POS-pharmacy
